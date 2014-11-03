@@ -1,0 +1,122 @@
+---
+title: "citygrades"
+author: "Rajiv Bhatia"
+date: "November 1, 2014"
+output: 
+  rmarkdown::html_vignette:
+    fig_caption: no
+    fig_height: 6
+    fig_width: 6
+  
+vignette: >
+  %\VignetteIndexEntry{City Grades}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\usepackage[utf8]{inputenc}
+---
+
+
+```{r libraries, echo=FALSE}
+library(knitr)
+library(tidyr)
+library(dplyr)
+library(ggvis)
+```
+
+```{r data}
+library(foodinspections)
+data(inspectiondata, package="foodinspections")
+
+```
+
+
+``` {r organize_data, echo=FALSE}
+
+## Count inspections by business
+
+.icounts <-inspection_tbl %>% group_by(business, type) %>% summarize(count=n()) %>%  data.frame() %>% spread(type,count, fill=0) %>% select(business, routines =Ro, reinspects=Re, complaints =Co) %>% mutate(inspects=routines+reinspects+complaints, retoro=reinspects/routines) %>%  data.frame()
+
+## Count violations by inspections
+.vcounts <- violation_tbl %>% group_by(inspection, risklevel) %>% summarize(risk_count=n()) %>%  data.frame() %>% spread(risklevel,risk_count, fill=0)
+
+## Join violation counts to the inspection table
+.routines <- inspection_tbl %>% left_join(.vcounts, by="inspection") %>% filter(type=="Ro") %>% select (-type)
+.routines[,5:8] [is.na(.routines[,5:8])] <- 0
+
+## Summarize the inspection history for each restaurant
+.grades <- .routines %>% filter(score>=0&score<=100) %>% group_by(business) %>% summarize(mean_score=mean(score),high_risk_violations=mean(H)) %>% data.frame() 
+
+## Summarize restaurant history
+
+.restaurants <- business_tbl %>% inner_join (.icounts, by="business") %>% inner_join (.grades, by="business")
+
+```
+
+###Number of Routine Inspections
+```{r hist_routines}
+.restaurants %>% ggvis(~routines, fill := "blue") %>% layer_histograms()
+```
+
+### Average Inspection Score
+```{r hist_meanscores}
+.restaurants %>% ggvis(~mean_score, fill := "blue") %>% layer_histograms()
+```
+
+###Average Number of High Risk Violations
+```{r hist_highrisks}
+.restaurants %>% ggvis(~high_risk_violations, fill := "blue") %>% layer_histograms()
+```
+
+###Ratio of Re-inspections to Routine Inspections
+
+```{r hist_ratio}
+.restaurants %>% ggvis(~retoro, fill := "blue") %>% layer_histograms()
+```
+
+### Restaurant Scores versus High Risk Violations
+```{r plot_scores_violations}
+.restaurants %>% ggvis(~high_risk_violations,~mean_score, fill := "blue") %>% layer_points()
+```
+
+### Restaurant Scores versus Routine Inspections
+```{r plot_scores_routines}
+.restaurants %>% ggvis(~routines, ~mean_score, fill := "blue") %>% layer_points()
+```
+
+### Restaurant Scores versus Re-inspections
+```{r plot_scores_reinspections}
+.restaurants %>% ggvis(~reinspects, ~mean_score, fill := "blue") %>% layer_points()
+```
+
+
+### Restaurant Scores versus Complaint Inspections
+```{r plot_scores_complaints}
+.restaurants %>% ggvis(~complaints, ~mean_score, fill := "blue") %>% layer_points()
+```
+
+### Restaurant Scores versus Total Inspections
+```{r plot_scores_inspections}
+.restaurants %>% ggvis(~inspects, ~mean_score, fill := "blue") %>% layer_points()
+```
+
+###Number of Routine Inspections Versus Inspection Scores
+```{r plot_scorerange_routineinspections}
+.restaurants %>%
+  mutate(score_range=cut(mean_score, breaks=c(0,75,80,85,90,95,100))) %>% 
+  group_by(score_range) %>% 
+  summarize(avg_n_inspections=mean(routines, na.rm=TRUE)) %>%
+  ggvis(~score_range,~avg_n_inspections, fill := "blue") %>%
+  layer_points()
+
+```
+
+###Number of Re-Inspections Versus Inspection Scores
+```{r plot_scorerange_reinspections}
+
+.restaurants %>%
+  mutate(score_range=cut(mean_score, breaks=c(0,75,80,85,90,95,100))) %>% 
+  group_by(score_range) %>% 
+  summarize(avg_n_reinspections=mean(reinspects, na.rm=TRUE)) %>%
+  ggvis(~score_range,~avg_n_reinspections, fill := "blue") %>%
+  layer_points()
+
+```

@@ -1,0 +1,68 @@
+---
+title: "restaurants"
+author: "Rajiv Bhatia"
+date: "October 31, 2014"
+output: html_document
+---
+
+```{r libraries}
+library(tidyr)
+library(dplyr)
+
+```
+
+```{r data}
+data(inspectiondata)
+```
+
+
+``` {r organize_data}
+
+## Create counts of violations by risk level for each inspection
+.vcounts <- violation_tbl %>% group_by(inspection, risklevel) %>% summarize(risk_count=n()) %>%  data.frame() %>% spread(risklevel,risk_count, fill=0)
+
+## Join the inspection table to violation counts
+.routines <- inspection_tbl %>% left_join(.vcounts, by="inspection") %>% filter(type=="Ro") %>% select (-type)
+.routines[,5:8] [is.na(.routines[,5:8])] <- 0
+
+## Summarize the inspection history for each restaurant
+.grades <- .routines %>% group_by(business) %>% summarize(inspections=n(), meanscore=mean(score),highriskscore=mean(H)) %>% data.frame() %>% inner_join(business_tbl, groupby="business")
+
+```
+
+```{r hist_meanscores}
+.grades %>% ggvis(~meanscore, fill := "blue") %>% layer_histograms()
+```
+
+
+```{r hist_highrisks}
+.grades %>% ggvis(~highriskscore, fill := "blue") %>% layer_histograms()
+```
+
+
+```{r plot_highrisks_v_meanscores}
+.grades %>% ggvis(~highriskscore, ~meanscore, fill := "blue") %>% layer_points()
+```
+
+
+
+```{r plot_avgmeanscore_v_inspections}
+.grades %>% 
+  group_by(inspections) %>% 
+  summarize(avg_score=mean(meanscore, na.rm=TRUE)) %>%
+  ggvis(~inspections, ~avg_score, fill := "blue") %>%
+  layer_points()
+
+```
+
+
+```{r plot_avghighriskscore_v_inspections}
+.grades %>% 
+  group_by(inspections) %>% 
+  summarize(avg_score=mean(highriskscore, na.rm=TRUE)) %>%
+  ggvis(~inspections, ~avg_score, fill := "blue") %>%
+  layer_points()
+
+```
+
+
