@@ -23,8 +23,8 @@ library(ggvis)
 ```
 
 ```{r data}
-library(foodinspections)
-data(inspectiondata, package="foodinspections")
+library(foodinspect)
+data(inspectiondata, package="foodinspect")
 
 ```
 
@@ -33,13 +33,13 @@ data(inspectiondata, package="foodinspections")
 
 ## Count inspections by business
 
-.icounts <-inspection_tbl %>% group_by(business, type) %>% summarize(count=n()) %>%  data.frame() %>% spread(type,count, fill=0) %>% select(business, routines =Ro, reinspects=Re, complaints =Co) %>% mutate(inspects=routines+reinspects+complaints, retoro=reinspects/routines) %>%  data.frame()
+.icounts <-inspection_tbl %>% group_by(business, type) %>% summarize(count=n()) %>%  data.frame() %>% spread(type,count, fill=0) %>% select(business, routines =routine, reinspects=reinspection, complaints =complaint) %>% mutate(inspects=routines+reinspects+complaints, retoro=reinspects/routines) %>%  data.frame()
 
 ## Count violations by inspections
 .vcounts <- violation_tbl %>% group_by(inspection, risklevel) %>% summarize(risk_count=n()) %>%  data.frame() %>% spread(risklevel,risk_count, fill=0)
 
 ## Join violation counts to the inspection table
-.routines <- inspection_tbl %>% left_join(.vcounts, by="inspection") %>% filter(type=="Ro") %>% select (-type)
+.routines <- inspection_tbl %>% left_join(.vcounts, by="inspection") %>% filter(type=="routine") %>% select (-type)
 .routines[,5:8] [is.na(.routines[,5:8])] <- 0
 
 ## Summarize the inspection history for each restaurant
