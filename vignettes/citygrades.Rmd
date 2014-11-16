@@ -1,7 +1,7 @@
 ---
 title: "citygrades"
 author: "Rajiv Bhatia"
-date: "November 1, 2014"
+date: "`r Sys.Date()`"
 output: 
   rmarkdown::html_vignette:
     fig_caption: no
@@ -14,13 +14,62 @@ vignette: >
   %\usepackage[utf8]{inputenc}
 ---
 
-
-```{r libraries, echo=FALSE}
+```{r libraries, echo=FALSE, message = FALSE}
 library(knitr)
 library(tidyr)
 library(dplyr)
+library(corrplot)
 library(ggvis)
 ```
+
+
+```{r options, echo = FALSE}
+opts_chunk$set(echo = FALSE)
+options(scipen = 100)
+```
+
+
+### Overview
+
+
+
+###  Background on Restaurants Inspections in San Francisco
+
+All restaurants must maintain certain minimum standards for health and hygiene.  In California, these standards are maintained in the State Food Code. State law delegates the monitoring and enforcement of restaurant health and safety standards to counties or cities.  In San Francisco, the Department of Health is the enforcement authority.
+
+The Department's performance standards dictate that inspectors  conduct at least two unnannounced inspections in each restaurant annually. If the inspection demonstrates that the restaurant is not following the operational standards in the Food Code, the inspector issues the restaurant a violation. Violations include those that present high risks for health and safety (e.g. food that is inadequately refridgerated) and those that present low or moderate risk. The inspector also gives the restaurant a score which is based on the number and type of vioations.  Where serious violations occur, inspectors conduct re-inspections to ensure the violation is corrected. 
+
+### Data
+
+This analysis is based on food business and inspection data updated and published weekly by the Department of Public Health. The published data contains records the past three years of safety inspections. The data is accessible at the [Department of Public Health public data FTP site](https://204.68.210.15/). We  accessed the following business, inspection, and violation level data from published data files.
+
+**Business Level Data**
+
+| **business** | Unique identifier for the business. |
+| --- | --- |
+| **name** | Business name |
+| **latitude** | Valid WGS 84 latitude of the business. |
+| **longitude** | Valid WGS 84 longitude of the business. |
+| **taxcode** | Code representing the category of business for business license purposes |
+
+
+**Inspection Level Data**
+
+| **business** | Unique identifier for the business. |
+| --- | --- |
+| **inspection** | Unique identifier for the inspection |
+| **date** | Date of inspection |
+| **type** | Type of inspection |
+| **score** | Restaurant inspection score (for routine inspections only) |
+
+
+**Violation Level Data**
+
+| **inspection** | Unique identifier for the inspection |
+| --- | --- |
+| **violation** | Violation type identifier |
+| **risklevel** | Health hazard associated with the violation (High, Moderate, Low) |
+
 
 ```{r data}
 library(foodinspect)
@@ -28,12 +77,35 @@ data(inspectiondata, package="foodinspect")
 
 ```
 
+---
+
+### Methods and Analysis
+
+To conduct this analysis we created a single business level table with summary statistics on inspections and violations conducted over the past three years. Businesses were included if they were tax code classes H24-H27 or H29-H30. This excluded temporary food facilities, mobile facilities, and stadium concessions.  Restaurants with less than two routineinspections over the three year period were excluded from analysis. 
+
+**Restaurant Inspection Table**
+
+| **business** | Unique identifier for the business. |
+| --- | --- |
+| **name** | Business name |
+| **latitude** | Valid WGS 84 latitude of the business. |
+| **longitude** | Valid WGS 84 longitude of the business. |
+| **taxcode** | Code representing the category of business for business license purposes |
+| **routines** | Number of routine inspections |
+| **reinspections** | Number of re-inspections |
+| **complaints** | Number of complaint inspections |
+| **ratio** | Ratio of re-inspections to routine inspections |
+| **meanscore** | Average food safety score over three years |
+| **highrisks** | Average number of high risk violations per inspection |
+| **interval** | Average routine inspection interval |
+
+
 
 ``` {r organize_data, echo=FALSE}
 
 ## Count inspections by business
 
-.icounts <-inspection_tbl %>% group_by(business, type) %>% summarize(count=n()) %>%  data.frame() %>% spread(type,count, fill=0) %>% select(business, routines =routine, reinspects=reinspection, complaints =complaint) %>% mutate(inspects=routines+reinspects+complaints, retoro=reinspects/routines) %>%  data.frame()
+.icounts <-inspection_tbl %>% group_by(business, type) %>% summarize(count=n()) %>%  data.frame() %>% spread(type,count, fill=0) %>% select(business, routines =routine, reinspects=reinspection, complaints =complaint) %>% mutate(inspects=routines+reinspects+complaints, ratio=reinspects/routines) %>%  data.frame()
 
 ## Count violations by inspections
 .vcounts <- violation_tbl %>% group_by(inspection, risklevel) %>% summarize(risk_count=n()) %>%  data.frame() %>% spread(risklevel,risk_count, fill=0)
@@ -43,65 +115,81 @@ data(inspectiondata, package="foodinspect")
 .routines[,5:8] [is.na(.routines[,5:8])] <- 0
 
 ## Summarize the inspection history for each restaurant
-.grades <- .routines %>% filter(score>=0&score<=100) %>% group_by(business) %>% summarize(mean_score=mean(score),high_risk_violations=mean(H)) %>% data.frame() 
+.grades <- .routines %>% filter(score>=0&score<=100) %>% group_by(business) %>% summarize(meanscore=mean(score),highrisks=mean(H)) %>% data.frame() 
+
+##Calculate rountine inspection interval
+
+.intervals <- inspection_tbl %>% 
+  filter(type=="routine") %>% 
+  mutate(date = as.Date(as.character(date),"%Y%m%d")) %>% 
+  group_by(business) %>%
+  summarize(count =n(), range=(max(date)-min(date)), interval=range/(count-1)) %>%
+  filter(count>=2) %>%
+  select (business, interval) 
 
 ## Summarize restaurant history
 
-.restaurants <- business_tbl %>% inner_join (.icounts, by="business") %>% inner_join (.grades, by="business")
+.restaurants <- business_tbl %>% 
+  inner_join (.icounts, by="business") %>% 
+  inner_join (.grades, by="business") %>% 
+  inner_join (.intervals, by="business")
 
 ```
 
-###Number of Routine Inspections
+
+---
+
+###Findings
+
+**Number of Routine Inspections**
+
+This plot shows the distribution of the frequency of routine inspections over the three year period.  Twice yearly routine inspections occur in a minority of restaurants.
+
 ```{r hist_routines}
-.restaurants %>% ggvis(~routines, fill := "blue") %>% layer_histograms()
+.restaurants %>% ggvis(~routines, fill := "blue") %>% layer_histograms(width=1,center=0)
+```
+
+**Routine Inspections Intervals**
+
+This figure shows the distribution of the average interval between routine inspections. Inspections occur less than once a year in a significant fraction of restaurants.
+
+```{r hist_intervals}
+.restaurants %>% ggvis(~interval, fill := "blue") %>% layer_histograms(width=30, center=0)
 ```
 
 ### Average Inspection Score
+
+This figure shows the distribution of the three-year average of the inspection score. Most restaurants have three year average scores greater than 90. A significant number have scores less than 85. 
+
 ```{r hist_meanscores}
-.restaurants %>% ggvis(~mean_score, fill := "blue") %>% layer_histograms()
+.restaurants %>% ggvis(~meanscore, fill := "blue") %>% layer_histograms(width=2)
 ```
 
 ###Average Number of High Risk Violations
+
+This figure shows the distribution of the three-year average of the number of high risk violations.  Most restaurants have one or fewer high-risk violation per inspection. 
+
 ```{r hist_highrisks}
-.restaurants %>% ggvis(~high_risk_violations, fill := "blue") %>% layer_histograms()
+.restaurants %>% ggvis(~highrisks, fill := "blue") %>% layer_histograms(width=0.25)
 ```
 
 ###Ratio of Re-inspections to Routine Inspections
 
+This figure shows the ratio of re-inspections to routine inspections.  Ratios greater than one indicate that inspectors routinely needed to conduct multiple re-inspections to correct substandard food safety practices. 
+
+
 ```{r hist_ratio}
-.restaurants %>% ggvis(~retoro, fill := "blue") %>% layer_histograms()
-```
-
-### Restaurant Scores versus High Risk Violations
-```{r plot_scores_violations}
-.restaurants %>% ggvis(~high_risk_violations,~mean_score, fill := "blue") %>% layer_points()
-```
-
-### Restaurant Scores versus Routine Inspections
-```{r plot_scores_routines}
-.restaurants %>% ggvis(~routines, ~mean_score, fill := "blue") %>% layer_points()
-```
-
-### Restaurant Scores versus Re-inspections
-```{r plot_scores_reinspections}
-.restaurants %>% ggvis(~reinspects, ~mean_score, fill := "blue") %>% layer_points()
+.restaurants %>% ggvis(~ratio, fill := "blue") %>% layer_histograms(width=0.1)
 ```
 
 
-### Restaurant Scores versus Complaint Inspections
-```{r plot_scores_complaints}
-.restaurants %>% ggvis(~complaints, ~mean_score, fill := "blue") %>% layer_points()
-```
+### Mean Number of Routine Inspections Versus Inspection Scores
 
-### Restaurant Scores versus Total Inspections
-```{r plot_scores_inspections}
-.restaurants %>% ggvis(~inspects, ~mean_score, fill := "blue") %>% layer_points()
-```
+The number of routine inspections typically will not vary by inspection score. However, in San Francisco, restaurants with lower safety scores appear to have fewer routine inspections. 
 
-###Number of Routine Inspections Versus Inspection Scores
 ```{r plot_scorerange_routineinspections}
 .restaurants %>%
-  mutate(score_range=cut(mean_score, breaks=c(0,75,80,85,90,95,100))) %>% 
+  mutate(score_range=cut(meanscore, breaks=c(0,75,80,85,90,95,100))) %>% 
   group_by(score_range) %>% 
   summarize(avg_n_inspections=mean(routines, na.rm=TRUE)) %>%
   ggvis(~score_range,~avg_n_inspections, fill := "blue") %>%
@@ -109,14 +197,68 @@ data(inspectiondata, package="foodinspect")
 
 ```
 
-###Number of Re-Inspections Versus Inspection Scores
+###Mean Routine Inspection Interval Versus Inspection Scores
+
+The interval between routine inspections typically will not vary by inspection score. However, in San Francisco, restaurants with lower safety scores appear to have longer intervals between routine inspections. 
+```{r plot_scorerange_interval}
+
+.restaurants %>%
+  mutate(score_range=cut(meanscore, breaks=c(0,75,80,85,90,95,100))) %>% 
+  group_by(score_range) %>% 
+  summarize(avg_interval=mean(interval, na.rm=TRUE)) %>%
+  ggvis(~score_range,~avg_interval, fill := "blue") %>%
+  layer_points()
+
+```
+
+###Mean Number of Re-Inspections Versus Inspection Scores
+
+We expect to see more frequent reinspections in restaurants with lower scores. This pattern is observed in San Francisco. 
+
 ```{r plot_scorerange_reinspections}
 
 .restaurants %>%
-  mutate(score_range=cut(mean_score, breaks=c(0,75,80,85,90,95,100))) %>% 
+  mutate(score_range=cut(meanscore, breaks=c(0,75,80,85,90,95,100))) %>% 
   group_by(score_range) %>% 
   summarize(avg_n_reinspections=mean(reinspects, na.rm=TRUE)) %>%
   ggvis(~score_range,~avg_n_reinspections, fill := "blue") %>%
   layer_points()
 
+```
+
+###Mean Number of Complaint Inspections Versus Inspection Scores
+
+We expect to see more frequent complaint inspections in restaurants with lower scores. This pattern is observed in San Francisco. 
+
+```{r plot_scorerange_complaints}
+
+.restaurants %>%
+  mutate(score_range=cut(meanscore, breaks=c(0,75,80,85,90,95,100))) %>% 
+  group_by(score_range) %>% 
+  summarize(avg_n_complaints=mean(complaints, na.rm=TRUE)) %>%
+  ggvis(~score_range,~avg_n_complaints, fill := "blue") %>%
+  layer_points()
+
+```
+
+
+###Which San Francisco restaurants have had the worst health and safety records over the past three years
+
+I defined poor health and safety records using the following criteria:
+
+--  Three-year average score less than 85 *AND*
+--  Three-year average ratio of re-inspections to routine inspections greater than one *AND*
+--  Three-year average number of high risk violations per inspection greater than one
+
+San Francisco restaurants meeting all three criteria are listed in the table below.
+
+
+```{r list_worst, results='asis'}
+
+.worst <-.restaurants %>%
+  filter(meanscore<=85&ratio>=1&highrisks>=1) %>%
+  select(name, routines, meanscore, ratio, highrisks) %>%
+  arrange(meanscore)
+kable(.worst, format="pandoc", row.names=FALSE, align=c("l", "c", "c","c","c"))
+           
 ```
