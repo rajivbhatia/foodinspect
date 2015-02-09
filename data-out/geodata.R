@@ -58,16 +58,22 @@ library(leafletR)
 .restaurants[,"highrisks"] <- round(.restaurants[,"highrisks"], 2)
 .restaurants[,"interval"] <- round(.restaurants[,"interval"], 0)
 
+# Create indicator variables and cumulative score
 
-# filter geocoded data
+.restaurants[,"c1"] <- as.numeric(.restaurants[,"meanscore"] < quantile(.restaurants[,"meanscore"],probs=0.2))
+.restaurants[,"c2"] <- as.numeric(.restaurants[,"highrisks"] > 1)
+.restaurants[,"c3"] <- as.numeric(.restaurants[,"ratio"] > 1)
+.restaurants[,"Score"] <- (4- (.restaurants[,"c1"] + .restaurants[,"c2"] + .restaurants[,"c3"]))
+
+# Save data as textfile
+
+write.csv(.restaurants, "/Users/rajivbhatia/Downloads/sfrestaurantsafety.csv", row.names = FALSE)
+
+# filter only geocoded data
 
 .restaurants  <- .restaurants  %>%
   filter(latitude!="NA"&longitude!="NA")
 
-
-# Save restaurant safety data as .csv file
-
-write.csv(.restaurants, "/Users/rajivbhatia/Downloads/sfrestaurantsafety.csv", row.names = FALSE)
-
+# Save data as geojson file
 
 toGeoJSON (.restaurants, name="sfrestaurantsafety", dest="/Users/rajivbhatia/Downloads/", lat.lon=c("latitude", "longitude"), overwrite=TRUE)

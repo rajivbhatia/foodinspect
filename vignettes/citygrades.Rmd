@@ -30,19 +30,19 @@ options(scipen = 100)
 
 ### Overview
 
-San Francisco is among a growing number of cities makes restaurant inspection data available to the public. Consumers are now able to access a restaurant's inspection score and history online, both from local governments and from business information services like Yelp.com. While food safety regulations are highly conserved nationally, cities may have diverse procedures for monitoring and scoring restaruants. For example, inspection frequencies may vary from city to city and some cities may allow restaurant to revise a poor inspection score.  As more cities disclose restaurant inspection data, consumers can benefit from uniformly interpretable metrics of restaurant safety peformance. This analysis explores three restaurant food safety indicators constructed based on multiple years of inspection data. 
+San Francisco is among a growing number of cities makes restaurant inspection data available to the public. Consumers are now able to access a restaurant's inspection score and history online, both from local governments and from business information services like Yelp.com. While food safety regulations are highly conserved nationally, cities may have diverse procedures for monitoring and scoring restaruants. For example, inspection frequencies may vary from city to city and some cities may allow restaurant to revise a poor inspection score.  As more cities disclose restaurant inspection data, consumers can benefit from uniformly interpretable metrics of restaurant safety peformance. 
 
-- The average inspection score during a routine inspection
-- The number of high-risk violations per inspection
-- The ratio of re-inspections to routine inspections
+This analysis examines three restaurant food safety indicators that could be comparable among cities.
 
-###  Restaurants Inspections Procedures
+-  Three-year average safety score in the lowest 20th percentile
+-  Three-year average ratio of re-inspections to routine inspections greater than one
+-  Three-year average number of high risk violations per inspection greater than one from San 
 
-All California restaurants must maintain certain minimum standards for health and hygiene.  In California, these standards are maintained in the State Food Code. State law delegates the monitoring and enforcement of restaurant health and safety standards to counties or cities.  The San Francisco Department of Health, the local enforcement authority, has established performance standards for inspectors  conduct at least two unnannounced inspections in each restaurant annually. If the inspection demonstrates that the restaurant is not following the operational standards in the Food Code, the inspector issues the restaurant a violation. Violations are categorized by level of risks for food borne illness. Each routine inspection is scored based on the number and type of vioations. For high risk violations, inspectors typically conduct a re-inspection to ensure the violation is corrected. 
+The analysis also examined a cumulative safety score between one and four based on all three indicators. Restaurants can earn a maximum of four points and lose one point for each of the hazard criteria listed above. 
 
 ### Data
 
-Food business and inspection data is published weekly by the Department of Public Health. The published data contains records the past three years of safety inspections. The data is accessible at the [Department of Public Health public data FTP site](https://204.68.210.15/). Files and fields  accessed for this analysis are listed below.
+Food business and inspection data is published weekly by the Department of Public Health. The published data contains records the past three years of safety inspections. The data is accessible at the [Department of Public Health public data FTP site](https://204.68.210.15/). We extracted the following data fields from the public files:
 
 **Business Level Data**
 
@@ -78,11 +78,8 @@ data(inspectiondata, package="foodinspect")
 
 ```
 
----
 
-### Methods and Analysis
-
-I created a single business level table with summary statistics on inspections and violations for the past three years. Businesses were included if they were tax code classes H24-H27 or H29-H30. This excluded temporary food facilities, mobile facilities, and stadium concessions. A significant number of restaurants had  less than two routine inspections over the three year period.  I excluded these restaurants from the analysis. 
+Raw data was used to create a single business level table with summary statistics on inspections and violations for the past three years. Businesses were included if they were tax code classes H24-H27 or H29-H30. This excluded temporary food facilities, mobile facilities, and stadium concessions. A significant number of restaurants had  less than two routine inspections over the three year period.  I excluded these restaurants from the analysis. 
 
 **Restaurant Inspection Table**
 
@@ -99,6 +96,7 @@ I created a single business level table with summary statistics on inspections a
 | **meanscore** | Average food safety score over three years |
 | **highrisks** | Average number of high risk violations per inspection |
 | **interval** | Average routine inspection interval |
+| **score** | Cumulative safety score |
 
 
 
@@ -159,130 +157,63 @@ I created a single business level table with summary statistics on inspections a
 .restaurants[,"highrisks"] <- round(.restaurants[,"highrisks"], 2)
 .restaurants[,"interval"] <- round(.restaurants[,"interval"], 0)
 
-```
+# Create indicator variables and cumulative score
 
+.restaurants[,"c1"] <- as.numeric(.restaurants[,"meanscore"] < quantile(.restaurants[,"meanscore"],probs=0.2))
+.restaurants[,"c2"] <- as.numeric(.restaurants[,"highrisks"] > 1)
+.restaurants[,"c3"] <- as.numeric(.restaurants[,"ratio"] > 1)
+.restaurants[,"score"] <- (4- (.restaurants[,"c1"] + .restaurants[,"c2"] + .restaurants[,"c3"]))
+```
 
 ---
 
 ###Findings
 
-**Number of Routine Inspections**
-
-This plot shows the distribution of the frequency of routine inspections over the three year period 
+**Number of Routine Inspections a Three Year Period**
 
 ```{r hist_routines}
 .restaurants %>% ggvis(~routines, fill := "blue") %>% layer_histograms(width=1,center=0)
 ```
 
-**Routine Inspections Intervals**
-
-This figure shows the distribution of the average interval between routine inspections. Inspections occur less than once a year in a significant fraction of restaurants.
+**Time Interval Between Routine Inspections (Days)**
 
 ```{r hist_intervals}
-.restaurants %>% ggvis(~interval, fill := "blue") %>% layer_histograms(width=30, center=0)
+.restaurants %>% ggvis(~interval, fill := "blue") %>% layer_histograms(width=90, center=0)
 ```
 
-### Average Inspection Score
-
-Inspection scores are a widely reported restaurnt safety performance measure but scores can be influenced by local inspection practices. This figure shows the distribution of the three-year average of the inspection scores in San Francisco. The median score is approximately 92. Only twenty percent of restaurants have average inspections scores less than 86. 
+**Average Inspection Scores**
 
 ```{r hist_meanscores}
 .restaurants %>% ggvis(~meanscore, fill := "blue") %>% layer_histograms(width=2)
-quantile(.restaurants[,"meanscore"],probs=c(0,0.2,0.4,0.6,0.8,1))
+
 ```
 
-###Average Number of High Risk Violations
-
-The number of high risk violations per inspection is another measure of restaurant safety and one that may be more uniformly interpretable from place to place.  This figure shows the distribution of the three-year average of the number of high risk violations.  Most restaurants in San Francisco have one or fewer high-risk violation per inspection. 
+**Average Number of High Risk Violations**
 
 ```{r hist_highrisks}
 .restaurants %>% ggvis(~highrisks, fill := "blue") %>% layer_histograms(width=0.25)
 ```
 
-###Ratio of Re-inspections to Routine Inspections
-
-This figure shows the ratio of re-inspections to routine inspections. Ratios greater than one indicate that inspectors routinely needed to conduct multiple re-inspections to correct substandard food safety practices. High ratios of re-inspections to inspections may be a third comparable indicator of food safety performance. 
-
+**Ratio of Re-inspections to Routine Inspections**
 
 ```{r hist_ratio}
 .restaurants %>% ggvis(~ratio, fill := "blue") %>% layer_histograms(width=0.1)
 ```
 
-### Mean Number of Routine Inspections Versus Inspection Scores
+**Cumulative Safety Score**
 
-The number of routine inspections typically will not vary by inspection score. However, for unclear reasons, restaurants in San Francisco, with lower safety scores appear to have fewer routine inspections. 
 
-```{r plot_scorerange_routineinspections}
-.restaurants %>%
-  mutate(score_range=cut(meanscore, breaks=c(0,75,80,85,90,95,100))) %>% 
-  group_by(score_range) %>% 
-  summarize(avg_n_inspections=mean(routines, na.rm=TRUE)) %>%
-  ggvis(~score_range,~avg_n_inspections, fill := "blue") %>%
-  layer_points()
-
+```{r hist_score}
+.restaurants %>% ggvis(~score, fill := "blue") %>% layer_histograms(width=0.25)
 ```
 
-###Mean Routine Inspection Interval Versus Inspection Scores
-
-The interval between routine inspections typically will not vary by inspection score. However, for unclear reasons,  restaurants with lower safety scores in San Francisco, appear to have longer intervals between routine inspections. 
-```{r plot_scorerange_interval}
-
-.restaurants %>%
-  mutate(score_range=cut(meanscore, breaks=c(0,75,80,85,90,95,100))) %>% 
-  group_by(score_range) %>% 
-  summarize(avg_interval=mean(interval, na.rm=TRUE)) %>%
-  ggvis(~score_range,~avg_interval, fill := "blue") %>%
-  layer_points()
-
-```
-
-###Mean Number of Re-Inspections Versus Inspection Scores
-
-We expect to see more frequent reinspections in restaurants with lower scores. This pattern is observed in San Francisco. 
-
-```{r plot_scorerange_reinspections}
-
-.restaurants %>%
-  mutate(score_range=cut(meanscore, breaks=c(0,75,80,85,90,95,100))) %>% 
-  group_by(score_range) %>% 
-  summarize(avg_n_reinspections=mean(reinspects, na.rm=TRUE)) %>%
-  ggvis(~score_range,~avg_n_reinspections, fill := "blue") %>%
-  layer_points()
-
-```
-
-###Mean Number of Complaint Inspections Versus Inspection Scores
-
-We expect to see more frequent complaint inspections in restaurants with lower scores. This pattern is observed in San Francisco. 
-
-```{r plot_scorerange_complaints}
-
-.restaurants %>%
-  mutate(score_range=cut(meanscore, breaks=c(0,75,80,85,90,95,100))) %>% 
-  group_by(score_range) %>% 
-  summarize(avg_n_complaints=mean(complaints, na.rm=TRUE)) %>%
-  ggvis(~score_range,~avg_n_complaints, fill := "blue") %>%
-  layer_points()
-
-```
-
-
-###A Composite Index for Restaurant Safety records
-
-Three independent measures of restaurant health and safety performance are low restaurant inspection scores, high ratios of re-inspections to inspections, and high numbers of high-risk violations.  A composite indicator of poor restaurant safety performance can combine all three measures.
-
-San Francisco restaurants meeting all three of the criteria listed below are identified in the table below.
-
--  Three-year average score less than 86
--  Three-year average ratio of re-inspections to routine inspections greater than one
--  Three-year average number of high risk violations per inspection greater than one
-
+**Restaurants Meeting All Three Cumulative Hazard Criteria**
 
 ```{r list_worst, results='asis'}
 
 .worst <-.restaurants %>%
-  filter(meanscore<86&ratio>=1&highrisks>=1) %>%
-  select(name, routines, meanscore, ratio, highrisks) %>%
+  filter(c1==1&c2==1&c3==1) %>%
+  select(name, interval, meanscore, ratio, highrisks) %>%
   arrange(meanscore)
 kable(.worst, format="pandoc", row.names=FALSE, align=c("l", "c", "c","c","c"))
            
