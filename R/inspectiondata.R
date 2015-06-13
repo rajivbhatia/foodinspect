@@ -10,6 +10,8 @@ business_tbl <-read.csv ("rawdata/sf/businesses.csv") %>%
   filter(taxcode=="H24"|taxcode=="H25"|taxcode=="H26"|taxcode=="H28"|taxcode=="H29") %>%
   select(business, name, taxcode, latitude,longitude)
 
+business_tbl$name <- str_replace_all(business_tbl$name, "[[:punct:]]", "")
+
 message("Importing inspection data")
 inspection_tbl <-read.csv ("rawdata/sf/inspections.csv") %>%
   mutate(business=as.character(business_id),score=Score,inspection=paste(as.character(business_id),date=as.character(date), sep="-"), type=as.character(type)) %>%
