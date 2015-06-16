@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Restaurant Scores</title>
+	<meta charset="utf-8">
+	<meta name="generator" content="leafletR">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+	<script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+	<script src="http://code.jquery.com/jquery-1.10.2.min.js"></script>
+	<link rel="dat1" type="application/json" href="restaurants.geojson" />
+	<style type="text/css">
+		body {
+			padding: 0;
+			margin: 0;
+		}
+		html, body, #map {
+			height: 100%;
+		}
+		table, td {
+			border-collapse: collapse;
+			border-style: solid;
+			border-width: 1px;
+			border-color: #e9e9e9;
+			padding: 5px;
+		}
+		.evenrowcol{
+			background-color: #f6f6f6;
+		}
+		.legend {
+			padding: 6px 8px;
+			font: 14px/16px Arial, Helvetica, sans-serif;
+			background: white;
+			background: rgba(255,255,255,0.8);
+			box-shadow: 0 0 15px rgba(0,0,0,0.2);
+			border-radius: 5px;
+			line-height: 18px;
+			color: #555;
+		}
+		.legend i {
+			width: 18px;
+			height: 18px;
+			float: left;
+			margin-right: 8px;
+		}
+		.legend table, .legend td {
+			border: none;
+		}
+		.value {
+			border: none;
+			padding: 0px 0px 0px 8px;
+			text-align: left;
+			vertical-align: middle;
+		}
+		.circle {
+			border: none;
+			padding: 0px;
+			text-align: center;
+			vertical-align: middle;
+		}
+		.shape {
+			padding: 0px;
+			text-align: center;
+			vertical-align: middle;
+		}
+		.ln {
+			stroke: #0033ff;
+			stroke-width: 5;
+			stroke-opacity: 0.5;
+			stroke-linecap: round;
+		}
+		.plgn {
+			fill: #0033ff;
+			fill-opacity: 0.5;
+			stroke: #0033ff;
+			stroke-width: 4;
+			stroke-opacity: 0.5;
+			stroke-linejoin: round;
+		}
+		.mrks {
+		    padding: 0px;
+			text-align: center;
+		    height:30px;
+		}
+		.mrkm {
+			padding: 0px;
+			text-align: center;
+		    height:40px;
+		}
+		.mrkl {
+			padding: 0px;
+			text-align: center;
+		    height:52px;
+		}
+		.legend i {
+			opacity: 0.5;
+		}
+	</style>
+</head>
+<body>
+	<div id="map"></div>
+	<script type="text/javascript">
+		var map = L.map('map').setView([37.77694,-122.4314], 14);
+		
+		// scale bar
+		L.control.scale().addTo(map);
+
+		// base layer
+		var baseMaps = {};
+		var baseMap = L.tileLayer('http://otile{s}.mqcdn.com/tiles/1.0.0/{type}/{z}/{x}/{y}.png', {"subdomains":"1234","type":"osm","attribution":"Tiles &copy; <a href=\"http://www.mapquest.com\", target=\"_blank\">MapQuest</a>, Map data &copy; <a href=\"http://openstreetmap.org/copyright\", target=\"_blank\">OpenStreetMap contributors</a>"});
+		baseMap.addTo(map);
+		baseMaps["MapQuest OSM"] = baseMap;
+
+		// popup
+		function onEachFeature(feature, layer) {
+			if (feature.properties &&  feature.properties["name"] && feature.properties["meanscore"] && feature.properties["interval"]) {
+				layer.bindPopup(
+					"<table>" +
+					"<tr class='oddrowcol'><td>name: </td><td>"+feature.properties["name"]+"</td></tr>" +
+					"<tr class='evenrowcol'><td>meanscore: </td><td>"+feature.properties["meanscore"]+"</td></tr>" +
+					"<tr class='oddrowcol'><td>interval: </td><td>"+feature.properties["interval"]+"</td></tr>" +
+					"</table>"
+				);
+			}
+		}
+
+		// styling
+		function getValue(x) {
+			return x > 100 ? "#808080" :
+			       x >= 95 ? "#FFFF80" :
+			       x >= 90 ? "#FFFF00" :
+			       x >= 85 ? "#FFBF00" :
+			       x >= 80 ? "#FF8000" :
+			       x >= 75 ? "#FF4000" :
+			       x >= 0 ? "#FF0000" :
+			       "#808080";
+		}			
+		function style1(feature) {
+			return {
+				"color": getValue(feature.properties["meanscore"]),
+
+				"fillOpacity": 0.5, "radius": 4
+			};
+		}
+
+		// data layers
+        var layers = {};
+		function addDataToMap(data, style, layer) {
+			layers[layer] = L.geoJson(data, {
+				onEachFeature: (typeof onEachFeature == "undefined") ? undefined : onEachFeature,
+				pointToLayer: function (feature, latlng) {return L.circleMarker(latlng);},
+				style: style
+			});
+			layers[layer].addTo(map);	
+		};
+		
+		if(typeof style1 == "undefined") style1 = undefined;
+		$.getJSON($("link[rel='dat1']").attr("href"), function(x) {addDataToMap(x, style1, "restaurants")});
+
+		// legend
+				var legend = L.control({position: 'bottomright'});
+				legend.onAdd = function(map) {
+					var div = L.DomUtil.create('div', 'legend');
+				    var labels = [];
+				    var grades = [0, 75, 80, 85, 90, 95, 100];
+
+					div.innerHTML += 'AverageRestaurant Score<br>'
+					for (var i = 0; i < grades.length-1; i++) { 
+						div.innerHTML +=
+						        '<i style="background:' + getValue(grades[i]) + '"></i> ' +
+						        								grades[i] + '&ndash;' + grades[i + 1] + '<br>';
+					}
+					
+				
+			return div;
+		};
+		legend.addTo(map);
+				
+	</script>
+</body>
+</html>
