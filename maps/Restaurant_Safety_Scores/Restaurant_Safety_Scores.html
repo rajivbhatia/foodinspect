@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Restaurant Scores</title>
+	<title>Restaurant Safety Scores</title>
 	<meta charset="utf-8">
 	<meta name="generator" content="leafletR">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
 	<script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
 	<script src="http://code.jquery.com/jquery-1.10.2.min.js"></script>
-	<link rel="dat1" type="application/json" href="restaurants.geojson" />
+	<link rel="dat1" type="application/json" href="sfrestaurants.geojson" />
 	<style type="text/css">
 		body {
 			padding: 0;
@@ -113,12 +113,14 @@
 
 		// popup
 		function onEachFeature(feature, layer) {
-			if (feature.properties &&  feature.properties["name"] && feature.properties["meanscore"] && feature.properties["interval"]) {
+			if (feature.properties &&  feature.properties["name"] && feature.properties["routines"] && feature.properties["meanscore"] && feature.properties["highrisks"] && feature.properties["interval"]) {
 				layer.bindPopup(
 					"<table>" +
-					"<tr class='oddrowcol'><td>name: </td><td>"+feature.properties["name"]+"</td></tr>" +
-					"<tr class='evenrowcol'><td>meanscore: </td><td>"+feature.properties["meanscore"]+"</td></tr>" +
-					"<tr class='oddrowcol'><td>interval: </td><td>"+feature.properties["interval"]+"</td></tr>" +
+					"<tr class='oddrowcol'><td>Restaurant Name: </td><td>"+feature.properties["name"]+"</td></tr>" +
+					"<tr class='evenrowcol'><td>Routine Inspections (2012-24): </td><td>"+feature.properties["routines"]+"</td></tr>" +
+					"<tr class='oddrowcol'><td>Avg Safety Score: </td><td>"+feature.properties["meanscore"]+"</td></tr>" +
+					"<tr class='evenrowcol'><td>High-risk Violations (# per Inspection): </td><td>"+feature.properties["highrisks"]+"</td></tr>" +
+					"<tr class='oddrowcol'><td>Avg Inspection Interval: </td><td>"+feature.properties["interval"]+"</td></tr>" +
 					"</table>"
 				);
 			}
@@ -139,7 +141,7 @@
 			return {
 				"color": getValue(feature.properties["meanscore"]),
 
-				"fillOpacity": 0.5, "radius": 4
+				"fillOpacity": 0.5, "radius": 2.5
 			};
 		}
 
@@ -155,7 +157,7 @@
 		};
 		
 		if(typeof style1 == "undefined") style1 = undefined;
-		$.getJSON($("link[rel='dat1']").attr("href"), function(x) {addDataToMap(x, style1, "restaurants")});
+		$.getJSON($("link[rel='dat1']").attr("href"), function(x) {addDataToMap(x, style1, "sfrestaurants")});
 
 		// legend
 				var legend = L.control({position: 'bottomright'});
@@ -164,7 +166,7 @@
 				    var labels = [];
 				    var grades = [0, 75, 80, 85, 90, 95, 100];
 
-					div.innerHTML += 'AverageRestaurant Score<br>'
+					div.innerHTML += 'Average Restaurant Safety Score 2012-2014<br>'
 					for (var i = 0; i < grades.length-1; i++) { 
 						div.innerHTML +=
 						        '<i style="background:' + getValue(grades[i]) + '"></i> ' +
