@@ -1,5 +1,5 @@
 ---
-title: "Summary Measures of Restaurant Safety"
+title: "Restaurant Safety Scores"
 author: "Rajiv Bhatia"
 date: "`r Sys.Date()`"
 output: 
@@ -9,12 +9,12 @@ output:
     fig_width: 6
   
 vignette: >
-  %\VignetteIndexEntry{Summary Measures of Restaurant Safety}
+  %\VignetteIndexEntry{Restaurant Safety Scores}
   %\VignetteEngine{knitr::rmarkdown}
   %\usepackage[utf8]{inputenc}
 ---
 
-```{r libraries, echo=FALSE, message = FALSE}
+```{r libraries, echo=FALSE, message = FALSE, warning=FALSE}
 library(knitr)
 library(tidyr)
 library(dplyr)
@@ -39,6 +39,10 @@ This analysis examines three restaurant food safety indicators that could be com
 -  Three-year average number of high risk violations per inspection greater than one from San 
 
 The analysis also examined a cumulative safety score between one and four based on all three indicators. Restaurants can earn a maximum of four points and lose one point for each of the hazard criteria listed above. 
+
+###Attribution
+
+Restaurant Inspection Scores by [Rajiv Bhatia](http://thecivicengine.com) is licensed under a [Creative Commons Attribution ShareAlike 4.0 International License](http://creativecommons.org/licenses/by-sa/4.0/)
 
 ### Data
 

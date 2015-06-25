@@ -5,7 +5,7 @@ require(dplyr)    # devtools::install_github("hadley/dplyr")
 #Import raw data files
 
 message("Importing buisiness data")
-business_tbl <-read.csv ("rawdata/sf/businesses.csv") %>%
+business_tbl <-read.csv ("data-raw/sf/businesses.csv") %>%
   mutate(business=as.character(business_id), taxcode=as.character(TaxCode)) %>%
   filter(taxcode=="H24"|taxcode=="H25"|taxcode=="H26"|taxcode=="H28"|taxcode=="H29") %>%
   select(business, name, taxcode, latitude,longitude)
@@ -13,12 +13,12 @@ business_tbl <-read.csv ("rawdata/sf/businesses.csv") %>%
 business_tbl$name <- str_replace_all(business_tbl$name, "[[:punct:]]", "")
 
 message("Importing inspection data")
-inspection_tbl <-read.csv ("rawdata/sf/inspections.csv") %>%
+inspection_tbl <-read.csv ("data-raw/sf/inspections.csv") %>%
   mutate(business=as.character(business_id),score=Score,inspection=paste(as.character(business_id),date=as.character(date), sep="-"), type=as.character(type)) %>%
   select(business,inspection,score,date,type)
 
 message("Importing violation data")
-violation_tbl <-read.csv ("rawdata/sf/violations.csv") %>%
+violation_tbl <-read.csv ("data-raw/sf/violations.csv") %>%
   mutate(inspection=paste(as.character(business_id),date=as.character(date), sep="-"), violation=as.character(ViolationTypeID),risklevel=strtrim(risk_category,1))%>%
   select(inspection, violation, risklevel)
 
